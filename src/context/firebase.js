@@ -1,25 +1,24 @@
-// src/context/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAyG_x3QMa5KnCwunRrPin-lk6fpZjqIs0",
-  authDomain: "fir-app-d852a.firebaseapp.com",
-  projectId: "fir-app-d852a",
-  storageBucket: "fir-app-d852a.firebasestorage.app",
-  messagingSenderId: "285173661535",
-  appId: "1:285173661535:web:4f8383903ac486c15680ea"
+  apiKey: "AIzaSyCaeNwZhSpmNi3aYzDQAnqQK1MgxHOmeRA",
+  authDomain: "taskmanager-5e446.firebaseapp.com",
+  projectId: "taskmanager-5e446",
+  storageBucket: "taskmanager-5e446.firebasestorage.app",
+  messagingSenderId: "95489329299",
+  appId: "1:95489329299:web:4ecd8f9ff49f318076a566",
+  measurementId: "G-S5ZS2PSJN6",
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn("Offline persistence failed: Multiple tabs open");
-  } else if (err.code === 'unimplemented') {
-    console.warn("Offline persistence not available in this browser");
-  }
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
 });
-
-export { db };

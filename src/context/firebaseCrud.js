@@ -1,56 +1,72 @@
-import { 
-  collection, addDoc, deleteDoc, doc, query, where, updateDoc, onSnapshot, getDocs 
-} from "firebase/firestore";
 import { db } from "./firebase";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  onSnapshot,
+  getDocs,
+  serverTimestamp,
+} from "firebase/firestore";
 
-// 🔄 Real-time fetch for lists
+// ---------- LISTS ----------
+
 export const listenToLists = (callback) => {
-  const listsCol = collection(db, "lists");
-  return onSnapshot(listsCol, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(data);
-  });
-};
-
-// Add new list
-export const addList = async (name) => {
-  const docRef = await addDoc(collection(db, "lists"), { name });
-  return docRef.id;
-};
-
-// Delete list + its items
-export const deleteList = async (listId) => {
-  await deleteDoc(doc(db, "lists", listId));
-  const itemsQuery = query(collection(db, "items"), where("listId", "==", listId));
-  const itemsSnapshot = await getDocs(itemsQuery);
-
-  const deletePromises = itemsSnapshot.docs.map(itemDoc =>
-    deleteDoc(doc(db, "items", itemDoc.id))
+  return onSnapshot(
+    collection(db, "lists"),
+    (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      data.sort(
+        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+      );
+      callback(data);
+    },
+    (err) => console.error("listenToLists error:", err)
   );
-  await Promise.all(deletePromises);
 };
 
-// 🔄 Real-time fetch for items
-export const listenToItemsByList = (listId, callback) => {
-  const itemsQuery = query(collection(db, "items"), where("listId", "==", listId));
-  return onSnapshot(itemsQuery, (snapshot) => {
-    const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(items.sort((a, b) => a.priority - b.priority));
+export const addList = async (name) => {
+  await addDoc(collection(db, "lists"), {
+    name: name.trim(),
+    createdAt: serverTimestamp(),
   });
 };
 
-// Add item
-export const addItemToList = async (listId, task, priority) => {
-  await addDoc(collection(db, "items"), { listId, task, priority, completed: false });
+export const deleteList = async (listId) => {
+  // delete the items inside first, then the list itself
+  const itemsSnap = await getDocs(collection(db, "lists", listId, "items"));
+  await Promise.all(itemsSnap.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(doc(db, "lists", listId));
 };
 
-// Toggle completion
-export const toggleItemCompletion = async (itemId, currentStatus) => {
-  const itemRef = doc(db, "items", itemId);
-  await updateDoc(itemRef, { completed: !currentStatus });
+// ---------- ITEMS ----------
+
+export const listenToItemsByList = (listId, callback) => {
+  return onSnapshot(
+    collection(db, "lists", listId, "items"),
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    },
+    (err) => console.error("listenToItemsByList error:", err)
+  );
 };
 
-// Delete item
-export const deleteItem = async (itemId) => {
-  await deleteDoc(doc(db, "items", itemId));
+export const addItemToList = async (listId, item) => {
+  await addDoc(collection(db, "lists", listId, "items"), {
+    task: item.task,
+    priority: item.priority || "Medium",
+    completed: false,
+    createdAt: serverTimestamp(),
+  });
+};
+
+export const toggleItemCompletion = async (listId, itemId, currentCompleted) => {
+  await updateDoc(doc(db, "lists", listId, "items", itemId), {
+    completed: !currentCompleted,
+  });
+};
+
+export const deleteItem = async (listId, itemId) => {
+  await deleteDoc(doc(db, "lists", listId, "items", itemId));
 };

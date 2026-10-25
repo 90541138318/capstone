@@ -1,63 +1,87 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ListContext } from "../context/Listcontext";
-import { Container, Form, Button, ListGroup, Row, Col } from "react-bootstrap";
+import { Container, Form, Button, Row, Col, ProgressBar } from "react-bootstrap";
 
 const Listpage = () => {
   const { listId } = useParams();
-  const { lists, addItem, toggleItem, deleteItem } = useContext(ListContext);
-  const list = lists.find((l) => l.id === parseInt(listId));
+  const {
+    lists,
+    items,
+    fetchItems,
+    addItemToList,
+    toggleItemCompletion,
+    deleteItem,
+  } = useContext(ListContext);
+
   const [task, setTask] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [showCompleted, setShowCompleted] = useState(true);
 
+  useEffect(() => {
+    const unsubscribe = fetchItems(listId);
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [listId]);
+
+  const list = lists.find((l) => l.id === listId);
+
   if (!list) {
     return (
-      <Container className="py-4">
-        <p className="text-danger">List not found.</p>
-        <Link to="/lists" className="btn btn-outline-primary mt-3">
-          ← Back to Lists
-        </Link>
+      <Container style={{ maxWidth: 760 }}>
+        <p className="text-muted">Loading list...</p>
+        <Link to="/lists">← Back to Lists</Link>
       </Container>
     );
   }
 
-  const handleAddItem = (e) => {
+  const handleAddItem = async (e) => {
     e.preventDefault();
     if (task.trim() === "") return;
-    addItem(list.id, task, priority);
+    await addItemToList(list.id, { task: task.trim(), priority });
     setTask("");
     setPriority("Medium");
   };
 
   const priorityOrder = { High: 1, Medium: 2, Low: 3 };
-  const sortedItems = [...list.items].sort(
-    (a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]
+  const sortedItems = [...items].sort(
+    (a, b) => (priorityOrder[a.priority] || 4) - (priorityOrder[b.priority] || 4)
   );
-
   const visibleItems = showCompleted
     ? sortedItems
     : sortedItems.filter((item) => !item.completed);
 
+  const total = items.length;
+  const doneCount = items.filter((i) => i.completed).length;
+  const percent = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+
   return (
-    <Container className="py-4">
-      <h2 className="fw-bold mb-3">{list.name}</h2>
-      <Link to="/lists" className="btn btn-link mb-3">
+    <Container style={{ maxWidth: 760 }}>
+      <Link to="/lists" className="text-decoration-none">
         ← Back to Lists
       </Link>
 
-      {/* Add Item Form */}
-      <Form onSubmit={handleAddItem} className="mb-4">
-        <Row className="g-2 align-items-center">
+      <div className="mt-2 mb-3">
+        <h1 className="page-title">{list.name}</h1>
+        <p className="page-sub">
+          {doneCount} of {total} completed
+        </p>
+      </div>
+
+      <ProgressBar now={percent} className="mb-4" />
+
+      <Form onSubmit={handleAddItem} className="surface p-3 mb-4">
+        <Row className="g-2">
           <Col xs={12} md={6}>
             <Form.Control
               type="text"
-              placeholder="Item task"
+              placeholder="What needs to be done?"
               value={task}
               onChange={(e) => setTask(e.target.value)}
             />
           </Col>
-          <Col xs={12} md={3}>
+          <Col xs={6} md={3}>
             <Form.Select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
@@ -67,63 +91,56 @@ const Listpage = () => {
               <option value="Low">Low</option>
             </Form.Select>
           </Col>
-          <Col xs={12} md={3}>
+          <Col xs={6} md={3}>
             <Button type="submit" variant="primary" className="w-100">
-              Add Item
+              + Add
             </Button>
           </Col>
         </Row>
       </Form>
 
-      {/* Show Completed Toggle */}
       <Form.Check
-        type="checkbox"
-        id="showCompletedCheckbox"
-        label="Show Completed"
+        type="switch"
+        id="showCompletedSwitch"
+        label="Show completed"
         checked={showCompleted}
         onChange={() => setShowCompleted(!showCompleted)}
         className="mb-3"
       />
 
-      {/* List Items */}
       {visibleItems.length === 0 ? (
-        <p className="text-muted">No items yet.</p>
+        <div className="surface empty-state">
+          <p className="mb-0">Nothing here yet. Add your first item above.</p>
+        </div>
       ) : (
-        <ListGroup>
-          {visibleItems.map((item) => (
-            <ListGroup.Item
-              key={item.id}
-              className="d-flex justify-content-between align-items-center"
-              variant={item.completed ? "secondary" : undefined}
+        visibleItems.map((item) => (
+          <div
+            key={item.id}
+            className={`surface task-row priority-${item.priority} ${
+              item.completed ? "done" : ""
+            }`}
+          >
+            <div className="d-flex align-items-center gap-3">
+              <Form.Check
+                type="checkbox"
+                checked={!!item.completed}
+                onChange={() =>
+                  toggleItemCompletion(list.id, item.id, item.completed)
+                }
+                aria-label="Mark complete"
+              />
+              <span className="task-text">{item.task}</span>
+              <span className={`pill pill-${item.priority}`}>{item.priority}</span>
+            </div>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => deleteItem(list.id, item.id)}
             >
-              <span
-                style={{
-                  textDecoration: item.completed ? "line-through" : "none",
-                }}
-              >
-                {item.task} (Priority: <strong>{item.priority}</strong>)
-              </span>
-              <div
-                className="btn-group btn-group-sm"
-                role="group"
-                aria-label="item actions"
-              >
-                <Button
-                  variant={item.completed ? "warning" : "success"}
-                  onClick={() => toggleItem(list.id, item.id)}
-                >
-                  {item.completed ? "Undo" : "Complete"}
-                </Button>
-                <Button
-                  variant="outline-danger"
-                  onClick={() => deleteItem(list.id, item.id)}
-                >
-                  Delete
-                </Button>
-              </div>
-            </ListGroup.Item>
-          ))}
-        </ListGroup>
+              Delete
+            </Button>
+          </div>
+        ))
       )}
     </Container>
   );

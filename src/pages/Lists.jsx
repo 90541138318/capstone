@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { ListContext } from "../context/Listcontext";
-import { Container, Form, Button, ListGroup, Row, Col } from "react-bootstrap";
+import { Container, Form, Button, Row, Col } from "react-bootstrap";
 
 const Lists = () => {
   const { lists, addList, deleteList } = useContext(ListContext);
@@ -14,52 +14,61 @@ const Lists = () => {
     setListName("");
   };
 
-  return (
-    <Container className="py-4">
-      <h1 className="fw-bold mb-4">All Lists</h1>
+  const handleDelete = (list) => {
+    if (window.confirm(`Delete "${list.name}" and all its items?`)) {
+      deleteList(list.id);
+    }
+  };
 
-      {/* Create New List Form */}
-      <Form onSubmit={handleAddList} className="mb-4">
-        <Row className="g-2 align-items-center">
-          <Col xs={12} md={8}>
+  return (
+    <Container style={{ maxWidth: 760 }}>
+      <div className="mb-4">
+        <h1 className="page-title">My Lists</h1>
+        <p className="page-sub">
+          {lists.length} {lists.length === 1 ? "list" : "lists"}
+        </p>
+      </div>
+
+      <Form onSubmit={handleAddList} className="surface p-3 mb-4">
+        <Row className="g-2">
+          <Col xs={12} sm={9}>
             <Form.Control
               type="text"
-              placeholder="Enter list name"
+              placeholder="Name your new list (e.g. Groceries, Project X)"
               value={listName}
               onChange={(e) => setListName(e.target.value)}
             />
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={12} sm={3}>
             <Button type="submit" variant="primary" className="w-100">
-              Create List
+              + Create
             </Button>
           </Col>
         </Row>
       </Form>
 
-      {/* Show Existing Lists */}
       {lists.length === 0 ? (
-        <p className="text-muted">No lists yet. Create your first list above!</p>
+        <div className="surface empty-state">
+          <p className="mb-0">No lists yet. Create your first one above.</p>
+        </div>
       ) : (
-        <ListGroup>
-          {lists.map((list) => (
-            <ListGroup.Item
-              key={list.id}
-              className="d-flex justify-content-between align-items-center"
+        lists.map((list) => (
+          <div key={list.id} className="surface list-row">
+            <Link to={`/list/${list.id}`} className="list-link">
+              <span className="list-avatar">
+                {list.name.charAt(0).toUpperCase()}
+              </span>
+              {list.name}
+            </Link>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={() => handleDelete(list)}
             >
-              <Link to={`/list/${list.id}`} className="text-decoration-none">
-                {list.name}
-              </Link>
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={() => deleteList(list.id)}
-              >
-                Delete
-              </Button>
-            </ListGroup.Item>
-          ))}
-        </ListGroup>
+              Delete
+            </Button>
+          </div>
+        ))
       )}
     </Container>
   );
