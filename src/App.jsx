@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { ListProvider } from "./context/Listcontext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -9,7 +9,7 @@ import Listpage from "./pages/Listpage";
 function App() {
   return (
     <ListProvider>
-      <BrowserRouter>
+      <HashRouter>
         <div className="app-shell">
           <Navbar />
           <main className="app-main">
@@ -21,7 +21,7 @@ function App() {
           </main>
           <Footer />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </ListProvider>
   );
 }
